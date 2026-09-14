@@ -1,0 +1,24 @@
+ERC report (2026-09-14T08:09:10+0530, Encoding UTF8)
+Report includes: Errors, Warnings
+
+***** Sheet /
+
+***** Sheet /POWER INPUT & POWER LED/
+
+***** Sheet /3.3V & 5V REGULATORS/
+
+***** Sheet /ESP32-S3 MCU/
+
+***** Sheet /RESET, BOOT & DEBUG UART/
+
+***** Sheet /USB-C/
+
+***** Sheet /LOCK DRIVER & SENSOR/
+
+***** Sheet /DISPLAY & STATUS LEDS/
+
+***** Sheet /EXIT BUTTON/
+
+***** Sheet /BUZZER & POWER FLAGS/
+
+ ** ERC messages: 0  Errors 0  Warnings 0

@@ -1,0 +1,21 @@
+# KiCad
+*.kicad_prl
+*-backups/
+fp-info-cache
+*.lck
+_autosave-*
+*.kicad_sch-bak
+*.kicad_pcb-bak
+
+# Review handoff package — regenerated copy of hardware/ + docs/, not source
+flux/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS / editors
+.DS_Store
+*~
+.vscode/
