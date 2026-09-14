@@ -22,3 +22,4 @@ __pycache__/
 
 # generated intermediate (the PDF is the deliverable)
 docs/wiring-guide/wiring-guide.html
+hardware/sim/*.txt

@@ -1,0 +1,60 @@
+* palm-scan Rev 2.4 — solenoid driver: Q1 AO3400A low-side switch, D2 SS54 flyback
+* Nets follow the schematic: +12V, LOCK_SW (Q1 drain / J3.2), LOCK_G (gate), IO4 (ESP32 pin)
+*
+* Q1 model: ngspice VDMOS fitted to the AO3400A datasheet —
+*   Vgs(th) 1.05 V typ; Rds(on) 32 mΩ @4.5 V, 26 mΩ @10 V; Ciss 630 pF, Crss 50 pF, Coss 75 pF; body diode 0.7 V
+.model AO3400A VDMOS(Vto=1.05 Kp=21 Lambda=0.01 Rd=0.012 Rs=0.006 Rg=1
++ Cgs=0.58n Cgdmax=0.30n Cgdmin=0.05n Cjo=0.03n Is=1e-10 N=1.0 Rb=0.02)
+* D2 model: 5 A / 40 V Schottky (SS54): Vf ≈ 0.4 V @1 A, Cj ≈ 300 pF
+.model SS54 D(Is=3u Rs=0.015 N=1.1 Cjo=300p Vj=0.45 M=0.45 Bv=40 Ibv=1u tt=1n)
+
+* --- 12 V supply: adapter + 0.3 Ω / 1 µH of cable, C1 470 µF bulk with 50 mΩ ESR
+Vadp   vin   0    DC 12
+Rcab   vin   n1   0.3
+Lcab   n1    p12  1u
+C1     p12   c1e  470u
+Resr   c1e   0    0.05
+
+* --- solenoid: Robu 12 V cabinet lock, 0.8 A → 15 Ω; inductance ASSUMED 60 mH (typical for this size)
+Lcoil  p12   lm   {LCOIL}
+Rcoil  lm    sw   15
+
+* --- D2 flyback across the coil (anode LOCK_SW, cathode +12V).
+*     Vd2 is a 0 V source so ngspice reports the diode current as i(Vd2).
+*     Rd2 is 1 mΩ normally; the "without D2" run sets it to 1 GΩ, which removes the diode from the circuit.
+Vd2    sw    d2a  DC 0
+Rd2    d2a   d2b  {RD2}
+D2     d2b   p12  SS54
+
+* --- Q1 low-side switch and its gate network
+M1     sw    g    0    0    AO3400A
+* Q1's drain-source breakdown (avalanche) at ~32 V. The VDMOS model has none, so it is added as a
+* reverse-biased "zener" from drain to source. Without this the no-D2 run shows an unphysical kV spike.
+Vav    0     avk  DC 0
+Dav    avk   sw   AVAL
+.model AVAL D(Is=1e-12 N=1 Rs=0.05 Bv=32 Ibv=1m Cjo=1p)
+* Vav senses the avalanche current so the energy dumped into Q1 can be integrated
+
+R13    io4   g    100
+R2     g     0    10k
+
+* --- ESP32-S3 GPIO: 3.3 V pulse, ~30 Ω output resistance, 10 ns edges; ON from 0.5 ms for 20 ms
+Vio    io4s  0    PULSE(0 3.3 0.5m 10n 10n 20m 100m)
+Rout   io4s  io4  30
+
+.param LCOIL=60m RD2=1m
+
+.control
+  set wr_singlescale
+  set wr_vecnames
+  * run 1: with D2
+  tran 100n 25m 0 200n
+  wrdata with_d2.txt v(io4) v(g) v(sw) v(p12) i(Lcoil) i(Vd2)
+  * run 2: without D2
+  alterparam RD2=1e9
+  reset
+  tran 100n 25m 0 200n
+  wrdata without_d2.txt v(io4) v(g) v(sw) v(p12) i(Lcoil) i(Vav)
+  quit
+.endc
+.end
