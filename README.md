@@ -195,3 +195,11 @@ Tools that matter: a multimeter (not optional), `idf.py monitor`, and `kicad-cli
 - DFRobot SEN0677 wiki — https://wiki.dfrobot.com/sen0677/ · protocol manual in [`docs/datasheets/`](docs/datasheets/)
 - Espressif, *ESP32-S3-WROOM-1 Datasheet* v1.8 · ESP-DL — https://github.com/espressif/esp-dl
 - RECOM R-78E series; Alpha & Omega AO3400A; Vishay SS34 — all in [`docs/datasheets/`](docs/datasheets/)
+
+---
+
+## Makers
+
+- Ashmita K Rao
+- Adithya Satish
+- Vinod Kumar
