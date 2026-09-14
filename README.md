@@ -200,6 +200,6 @@ Tools that matter: a multimeter (not optional), `idf.py monitor`, and `kicad-cli
 
 ## Makers
 
-- Ashmita K Rao
-- Adithya Satish
-- Vinod Kumar
+- [Ashmita K Rao](https://github.com/ashmita1032-prog)
+- [Adithya Satish](https://github.com/adithyasathish10)
+- [Vinod Kumar](https://github.com/coolvnod)
