@@ -67,7 +67,7 @@ flowchart LR
 
     subgraph Modules["Plug-in modules"]
         AI10["AI10 palm-vein sensor<br/>UART 115200"]
-        TFT["2.4&quot; TFT + touch<br/>SPI"]
+        TFT["2.4-inch TFT + touch<br/>SPI"]
     end
 
     ADP --> PWR --> MCU
