@@ -81,6 +81,8 @@ flowchart LR
     USB <--> MCU
 ```
 
+**New here?** Read the [Wiring & Components Guide (PDF)](docs/palm-scan-wiring-guide.pdf) — every cable and part explained in plain words, with an A3 fold-out wiring diagram.
+
 **Design decisions worth knowing** (full reasoning in [`docs/DESIGN_REVIEW.md`](docs/DESIGN_REVIEW.md)):
 
 - **Solenoid is fed *after* the reverse-protection diode.** Rev 2.0 had it before — plugging the adapter in backwards would have shorted through the MOSFET's body diode. Caught in review.
@@ -114,6 +116,8 @@ flowchart LR
 palm-scan/
 ├── README.md
 ├── docs/
+│   ├── palm-scan-wiring-guide.pdf   Illustrated wiring & components guide (A3 fold-out) — start here
+│   ├── wiring-guide/       Source for the guide (Python → SVG → PDF)
 │   ├── COMPONENTS.md       BOM in three lists: fab-assembled / hand-soldered / off-board
 │   ├── NETLIST.md          Plain-words net table — the source of truth the schematic is checked against
 │   ├── POWER_BUDGET.md     Rail currents, derating, fuse/adapter analysis, trace widths
