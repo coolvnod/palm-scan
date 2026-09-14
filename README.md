@@ -1,12 +1,12 @@
 # palm-scan
 
-**A palm-vein door lock.** Hold your hand over the sensor; if the veins under your skin match, the door unlocks.
+**Open palm-vein scanning — hardware, firmware and our own recognition model.** Hold your hand over the sensor; it reads the vein pattern under your skin and identifies you. Access control (a door release) is the first demo application, not the point.
 
 <p align="center">
   <img src="docs/images/enclosure-labeled.png" width="820" alt="palm-scan enclosure concept, labeled">
 </p>
 
-No cards, no PINs, no fingerprints. Veins are *inside* the body — a photo of your hand, a silicone copy, or a lifted print does nothing. And the pattern only shows up when blood is flowing, so the sensor gets liveness detection for free.
+No cards, no PINs, no fingerprints. Veins are *inside* the body — a photo of your hand, a silicone copy, or a lifted print does nothing. And the pattern only shows up when blood is flowing, so the scanner gets liveness detection for free. The goal is to understand and build the whole stack: NIR acquisition → preprocessing → feature extraction → matching — not just wire up a module.
 
 | | |
 |---|---|
@@ -14,9 +14,9 @@ No cards, no PINs, no fingerprints. Veins are *inside* the body — a photo of y
 | **Controller** | ESP32-S3-WROOM-1 (N8R2), custom 2-layer PCB, 46 parts |
 | **Sensor** | DFRobot AI10 (SEN0677) binocular palm-vein / face module, UART |
 | **UI** | 2.4" 240×320 TFT + resistive touch, 2 panel LEDs, piezo buzzer |
-| **Actuator** | 12 V fail-secure solenoid lock, MOSFET-driven, inside exit button |
+| **Demo output** | 12 V fail-secure solenoid (door-release demo), MOSFET-driven, plus an exit button input |
 | **Power** | 12 V 2 A adapter → polyfuse → reverse diode → TVS → 3.3 V + 5 V switching regulators |
-| **Roadmap** | Firmware (ESP-IDF) → PCB → bring-up → own CNN matcher trained on IR frames pulled from the sensor |
+| **Roadmap** | Firmware (ESP-IDF) → PCB → bring-up → **own CNN matcher** trained on NIR frames pulled from the sensor |
 
 ---
 
@@ -37,7 +37,7 @@ Every palm-vein system, from a ₹3,000 module to a Fujitsu PalmSecure, runs the
 | **3. Feature extraction** | Turn the ROI into a compact signature. Classical: Gabor filters, LBP, line/curvature detectors. Modern: a **CNN embedding** — a vector of a few hundred numbers. | AI10 built-in matcher now → own CNN embedding later. |
 | **4. Matching** | Compare the signature with the enrolled templates. Hamming / cosine distance below a threshold → *genuine*, else *impostor*. Tuned on **EER** (equal error rate — where false accepts = false rejects). | Threshold set inside the AI10; `VERIFY` returns user ID + score. |
 
-Why veins beat fingerprints for a door lock — from Wu et al.'s 2019 review in *IET Biometrics*:
+Why palm veins are a strong biometric — from Wu et al.'s 2019 review in *IET Biometrics*:
 
 - **Uniqueness:** vein networks differ even between identical twins and between your own two hands.
 - **Liveness:** no blood flow, no image. A severed or fake hand fails.
@@ -53,7 +53,7 @@ Why veins beat fingerprints for a door lock — from Wu et al.'s 2019 review in 
 flowchart LR
     subgraph Field["Outside the box"]
         ADP["12 V 2 A adapter"]
-        LOCK["12 V solenoid lock"]
+        LOCK["12 V solenoid<br/>(door-release demo)"]
         EXIT["Exit button<br/>(inside room)"]
         PANEL["Panel LEDs<br/>green / red"]
     end
@@ -83,11 +83,11 @@ flowchart LR
 
 **Design decisions worth knowing** (full reasoning in [`docs/DESIGN_REVIEW.md`](docs/DESIGN_REVIEW.md)):
 
-- **Lock is fed *after* the reverse-protection diode.** Rev 2.0 had it before — plugging the adapter in backwards would have shorted through the MOSFET's body diode. Caught in review.
+- **Solenoid is fed *after* the reverse-protection diode.** Rev 2.0 had it before — plugging the adapter in backwards would have shorted through the MOSFET's body diode. Caught in review.
 - **Sensor runs on 5 V, not 12 V.** The AI10 accepts 5–12 V; at 12 V its internal regulator cooks. 5 V keeps it cool and makes the adapter's exact voltage irrelevant.
 - **Display's SDO pin is left unconnected.** The ST7789 on these modules doesn't release MISO when deselected, so it fights the touch controller. Well-known trap; days lost by many.
 - **Everything near the MCU is 3.3 V.** Display powered from +3V3, sensor UART assumed 3.3 V (measured before connection — see bring-up).
-- **Fail-secure + watchdog.** Power cut = locked, so the door must have a mechanical handle inside (fire-safety rule, not a preference). Firmware caps any unlock at 5 s with a hardware task watchdog — the solenoid is intermittent-duty and will burn if held on.
+- **Fail-secure + watchdog.** If the demo output drives a door: power cut = locked, so the door must have a mechanical handle inside (fire-safety rule, not a preference). Firmware caps any release at 5 s with a hardware task watchdog — the solenoid is intermittent-duty and will burn if held on.
 
 ### GPIO map
 
@@ -152,9 +152,9 @@ Requires KiCad ≥ 9.0 (`kicad-cli` on PATH) and Python 3.10+.
 | Phase | Deliverable | State |
 |---|---|---|
 | 1 | Schematic, BOM, power budget, two design reviews | ✅ Rev 2.4 |
-| 2 | Firmware: AI10 UART driver, lock state machine + watchdog, TFT UI, enrol/verify flow | ⬜ |
+| 2 | Firmware: AI10 UART driver, enrol/verify flow, TFT UI, output state machine + watchdog | ⬜ |
 | 3 | PCB layout, DRC, Gerbers, order (JLCPCB assembly for the 32 SMD parts) | ⬜ |
-| 4 | Bring-up: rail checks, sensor level check, first unlock on a bench solenoid | ⬜ |
+| 4 | Bring-up: rail checks, sensor level check, first recognition on the bench | ⬜ |
 | 5 | Enclosure (the render above is the concept; CAD to follow) | ⬜ |
 | 6 | **Own CNN matcher** — see below | ⬜ |
 
@@ -162,14 +162,14 @@ Firmware comes before PCB on purpose: the sensor and display can be driven from 
 
 ### Phase 6 — a CNN of our own
 
-The AI10 does its matching on-chip and we don't get to see how. That's fine for a door, but the point of this project is to learn how the matching actually works. The plan:
+The AI10 does its matching on-chip and we don't get to see how. That's fine for a demo, but the point of this project is to build and understand the recognition itself. The plan:
 
 1. **Harvest images.** The AI10's protocol has `MID_SNAP&UPLOAD_IMAGE` (0x71): it captures and streams a 240×320 JPEG over UART in 1 KB packets. So the sensor doubles as an NIR camera for dataset collection — no extra hardware.
 2. **Build a dataset.** Our own small one (multiple sessions, both hands, varied height and angle — the paper's warning about tiny datasets applies), plus a public set (CASIA-MS-Palmprint or PolyU) for pre-training.
 3. **ROI extraction.** Finger-valley keypoints → fixed square crop, following the classical method the review describes. This is where most of the real-world failures live.
 4. **Train an embedding network.** Small CNN (MobileNet-class) trained with a metric loss (triplet / ArcFace) so genuine pairs land close and impostors far apart. Training runs on Kaggle GPUs, never on the laptop.
 5. **Evaluate properly.** ROC curve, EER, FAR at fixed FRR — not "accuracy".
-6. **Deploy.** Two options, decided by the numbers: quantised INT8 on the ESP32-S3 via ESP-DL (the S3 has vector instructions for exactly this), or on a small Linux SBC if the model won't fit. The AI10 stays as a fallback matcher either way.
+6. **Deploy.** Two options, decided by the numbers: quantised INT8 on the ESP32-S3 via ESP-DL (the S3 has vector instructions for exactly this), or on a small Linux SBC if the model won't fit. The AI10 stays as a reference matcher to benchmark against either way.
 
 ---
 
@@ -183,7 +183,7 @@ Read [`docs/POWER_BUDGET.md`](docs/POWER_BUDGET.md) §7 first. Non-negotiable it
 - [ ] Solenoid: confirm intermittent vs continuous duty on the listing; measure coil current — if > 0.8 A move F1 to a 3 A-hold part.
 - [ ] Buzzer must be a **passive piezo**, not a magnetic one — the pin drives it directly.
 - [ ] Use **J1 or J8** for power, never both.
-- [ ] The door has a handle on the inside.
+- [ ] If wired to a door: it has a handle on the inside.
 
 Tools that matter: a multimeter (not optional), `idf.py monitor`, and `kicad-cli` for regenerating outputs.
 
